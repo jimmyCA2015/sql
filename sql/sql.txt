@@ -1,0 +1,8 @@
+
+
+select DATEADD(mm, DATEDIFF(mm, 0, ord.orderdate),0), count(orderno),sum(CASE WHEN ISNULL(ORD.CubedWeight, 0) > ISNULL(ORD.[Weight], 0) THEN ISNULL(ORD.CubedWeight, 0) ELSE ISNULL(ORD.[Weight], 0) END) AS 'Billedweight',sum(baseamount),
+sum(subtotalamount),case when sum(CASE WHEN ISNULL(ORD.CubedWeight, 0) > ISNULL(ORD.[Weight], 0) THEN ISNULL(ORD.CubedWeight, 0) ELSE ISNULL(ORD.[Weight], 0) END)=0 then 0
+ ELSE  sum(subtotalamount)/sum(CASE WHEN ISNULL(ORD.CubedWeight, 0) > ISNULL(ORD.[Weight], 0) THEN ISNULL(ORD.CubedWeight, 0) ELSE ISNULL(ORD.[Weight], 0) END)  END AS 'price/lb'
+  FROM [CourierComplete].[dbo].[viewSearchOrders] ORD  
+
+  inner join couriercomplete.dbo.clients c on ord.accountnumber=c.accountnumber where c.name='Abbott Laboratories - AAH Division' group by DATEADD(mm, DATEDIFF(mm, 0, ord.orderdate),0)   order by DATEADD(mm, DATEDIFF(mm, 0, ord.orderdate),0)

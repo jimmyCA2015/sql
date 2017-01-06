@@ -1,0 +1,12 @@
+SELECT        TransDate, [Type], TransID, Amount, [Status], LEFT(REPLACE(REPLACE(dbo.f_BinaryToBase64(CAST(TransID AS varbinary(MAX))), '/', '_'), '+','-'), 22)
+FROM            OPPI_MonerisTrans
+
+
+SELECT        *, LEFT(REPLACE(REPLACE(dbo.f_BinaryToBase64(OnlinePaymentTransactionId), '/', '_'), '+','-'), 22)
+FROM            OPPI_MonerisFail
+
+SELECT MO.TransDate, MO.TransID, MO.Type, MO.Amount, MF.OnlinePaymentTransactionId, MF.ProviderTransactionRef, MF.TotalValue, MF.ProviderSecondaryRef, MF.CreditCardType FROM OPPI_MonerisTrans AS MO INNER JOIN OPPI_MonerisFail AS MF 
+	ON MO.TransID = LEFT(REPLACE(REPLACE(dbo.f_BinaryToBase64(MF.OnlinePaymentTransactionId), '/', '_'), '+','-'), 22) ORDER BY MO.TransDate
+
+SELECT MO.TransDate, MO.TransID, MO.Type, MO.Amount FROM OPPI_MonerisTrans AS MO 
+	WHERE MO.TransID = LEFT(REPLACE(REPLACE(dbo.f_BinaryToBase64(CAST('035978ff-b077-48a8-8cbc-806d2e20a53e' AS uniqueidentifier)), '/', '_'), '+','-'), 22) 

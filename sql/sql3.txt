@@ -1,0 +1,672 @@
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		<Author,,Name>
+-- Create date: <Create Date,,>
+-- Description:	<Description,,>
+-- =============================================
+ALTER PROCEDURE [dbo].[getCustomerReport]
+	@StartDate dateTime,
+	@EndDate  dateTime
+	
+	
+AS
+BEGIN
+SELECT OrderNo
+      ,Operator
+         ,C.name as 'AccountName'
+         ,convert(datetime, orderdate) as 'orderdate'
+         ,datepart(month,convert(varchar(8), orderdate, 1)) as 'MonthNumber'
+          ,datepart(wk,convert(varchar(8), orderdate, 1)) as 'WeekNumber'
+		  ,case when datepart(weekday,convert(varchar(8), orderdate, 1)) = 2 then 'Monday'
+			when datepart(weekday,convert(varchar(8), orderdate, 1)) = 3 then 'Tuesday' 
+			when datepart(weekday,convert(varchar(8), orderdate, 1)) = 4 then 'Wednesday'
+			when datepart(weekday,convert(varchar(8), orderdate, 1)) = 5 then 'Thursday'
+			when datepart(weekday,convert(varchar(8), orderdate, 1)) = 6 then 'Friday'	   
+			when datepart(weekday,convert(varchar(8), orderdate, 1)) = 7 then 'Saturday'
+			when datepart(weekday,convert(varchar(8), orderdate, 1)) = 1 then 'Sunday'
+		   end as weekdayname
+         ,datepart(hour, convert(varchar(7), orderdate, 108)) as 'HOUR'
+  FROM [CourierComplete].[dbo].[viewSearchOrders] as VSO inner join [CourierComplete].[dbo].[Clients] as C on VSO.accountnumber = C.accountnumber
+  where Operator in ('BHOFFMAN','DOLIVEIRA','LFERNANDO','LRAYKOFF','MSITANA','SDANDIWAL','DARMSTRONG') 
+   AND DATEADD(dd, DATEDIFF(dd, 0, orderdate),0) >= @StartDate AND DATEADD(dd, DATEDIFF(dd, 0, orderdate),0) <= @EndDate
+  order by convert(datetime, orderdate)
+END
+
+
+USE [Rogue]
+GO
+/****** Object:  StoredProcedure [dbo].[extractTimeFromInstruction]    Script Date: 12/17/2015 13:40:49 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		John Turner
+-- Create date: Nov 14/13
+-- Description:	Accrual Report Query
+-- =============================================
+ALTER PROCEDURE [dbo].[extractTimeFromInstruction] 
+	
+AS
+BEGIN
+	SET NOCOUNT ON;
+   DECLARE @OrderNo int
+   DECLARE @Instructions varchar(1000)
+   DECLARE @DeliveryTime varchar(100)
+	
+
+	DECLARE @instruction TABLE 
+		(
+			OrderNo int,
+			Instructions varchar(1000),
+			DeliveryTime varchar(100)
+		)
+
+	DECLARE Orders CURSOR FOR
+		
+			SELECT [OrderNo]
+       ,INSTRUCTIONS,CASE WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-6),8))  LIKE '%PM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-6),8)),1,1)) like '[0-9]' 
+       AND (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-6),8))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-5),7))  LIKE '%PM%' and ( (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-5),7)),1,1)) like '[0-9]'  or (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-5),7)),1,1)) like '%1%')
+       AND (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-5),7))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-4),6))  LIKE '%PM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-4),6)),1,1)) like '[0-9]'
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-4),6))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-3),5))  LIKE '%PM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-3),5)),1,1)) like '[0-9]'
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-3),5))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-2),4))  LIKE '%PM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-2),4)),1,1)) like '[0-9]'
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-2),4))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-1),3))  LIKE '%PM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-1),3)),1,1)) like '[0-9]'
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%PM%',INSTRUCTIONS)-1),3))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-6),8))  LIKE '%AM%' and (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-6),8)),1,1)) like '[0-9]'
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-6),8))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-5),7))  LIKE '%AM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-5),7)),1,1)) like '[0-9]'
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-5),7))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-4),6))  LIKE '%AM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-4),6)),1,1)) like '[0-9]'
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-4),6))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-3),5))  LIKE '%AM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-3),5)),1,1)) like '[0-9]'
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-3),5))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-2),4))  LIKE '%AM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-2),4)),1,1)) like '[0-9]'
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-2),4))
+       WHEN(SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-1),3))  LIKE '%AM%' and  (select substring((SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-1),3)),1,1)) like '[0-9]' 
+       and (instructions like '%del%' or instructions like '%deliver%' or instructions like '%delivery%')
+       THEN (SELECT SUBSTRING(INSTRUCTIONS,(SELECT PATINDEX('%AM%',INSTRUCTIONS)-1),3))
+       END AS 'timestamp'
+  FROM [CourierComplete].[dbo].[viewSearchOrders]
+  where accountnumber in (200696,200301,200462,200487,200461,200734,200452,200464,200463,200460) and (Convert(datetime, pickeduptime) >= '06/01/2015 00:00:00' AND Convert(datetime, pickeduptime) <= '10/30/2015 23:59:59') 
+
+
+	OPEN Orders
+		FETCH NEXT FROM Orders INTO @OrderNo,@Instructions,@DeliveryTime
+		 
+		WHILE @@FETCH_STATUS = 0
+			BEGIN
+			    IF @Instructions like '%B4%'
+			    BEGIN
+			    
+			      SELECT   @DeliveryTime=substring(@DeliveryTime,3,LEN(@DeliveryTime)-2)
+		        
+		        END
+		        
+		        IF @Instructions like '%shipment%pm%'
+		        BEGIN
+		        
+		        SELECT @DeliveryTime=(CASE when substring(substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-5),7),1,1) like '[0-9]'
+		         then substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-5),7)
+		         
+		         when substring(substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-4),6),1,1) like '[0-9]'
+		         then substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-4),6)
+		         
+		          when substring(substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-3),5),1,1) like '[0-9]'
+		         then substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-3),5)
+		         
+		          when substring(substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-2),4),1,1) like '[0-9]'
+		         then substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-2),4)
+		         
+		          when substring(substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-1),3),1,1) like '[0-9]'
+		         then substring(substring(@Instructions,8,LEN(@Instructions)-7),(SELECT PATINDEX('%PM%',substring(@Instructions,8,LEN(@Instructions)-7))-1),3)
+		         
+		         END )
+		         IF @Instructions like '%(%)' and  @Instructions like '%pm%'  
+		         BEGIN
+		           SELECT @DeliveryTime=substring(@Instructions,patindex('%(%',@Instructions),  (  patindex('%pm%',@instructions)- patindex('%(%',@instructions)+2))
+		         
+		         END
+		         IF @Instructions like '%(%)' and  @Instructions like '%am%'  
+		         BEGIN
+		           SELECT @DeliveryTime=substring(@Instructions,patindex('%(%',@Instructions),  (  patindex('%am%',@instructions)- patindex('%(%',@instructions)+2))
+		         
+		         END
+		        
+		        END
+		       INSERT @instruction
+				SELECT @OrderNo,@Instructions,@DeliveryTime
+			
+				FETCH NEXT FROM Orders INTO @OrderNo,@Instructions,@DeliveryTime
+				
+			END
+	
+		CLOSE Orders
+		DEALLOCATE Orders
+
+		SELECT * FROM @instruction
+END
+
+USE [Rogue]
+GO
+/****** Object:  StoredProcedure [dbo].[getdataforgeneralssrs]    Script Date: 12/17/2015 13:42:33 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		<Author,,Name>
+-- Create date: <Create Date,,>
+-- Description:	<Description,,>
+-- =============================================
+ALTER PROCEDURE [dbo].[getdataforgeneralssrs]
+	@StartDate dateTime,
+	@EndDate  dateTime,
+	@UserNo  int,
+	@Reference varchar(100)
+WITH RECOMPILE	
+AS
+BEGIN
+  if(@Reference is not null)
+  BEGIN
+	SELECT ord.Reference,c.name AS AccountName,InvoiceNumber,ord.AccountNumber,s.description AS serviceType,ord.OrderNo,ord.waitingtimeamount,ord.insuranceamount,ord.afterhoursamount,
+	CASE WHEN ORD.InvoiceNumber IS NOT NULL THEN 'Invoiced' ELSE (CASE WHEN ORD.FinalizedOnDate IS NOT NULL THEN 'Finalized' ELSE 'Delivered' END) END AS Status,
+	 CONVERT(datetime,ord.pickeduptime,120)As PickUpTime,ord.PickupCompanyName,  CONVERT(varchar(100),ord.pickupstreetno) + ' '  + CONVERT(varchar(100), ord.pickupstreet) AS PickUpStreet,ord.PickupCity,ord.PickupProvince,ord.PickupPostalCode,
+	 CONVERT(datetime,ord.deliveredtime,120)As DeliverTime,ord.DeliveryCompanyName, CONVERT(varchar(100),ord.deliverystreetno) + ' '  + CONVERT(varchar(100), ord.deliverystreet) AS DeliveryStreet,ord.DeliveryCity,
+	ord.DeliveryProvince,ord.DeliveryPostalCode,CASE WHEN ISNULL(ORD.CubedWeight, 0) > ISNULL(ORD.[Weight], 0) THEN ISNULL(ORD.CubedWeight, 0) ELSE ISNULL(ORD.[Weight], 0) END AS 'Billedweight',
+	ord.BaseAmount,ord.FuelAmount,(ord.subtotalamount-ord.baseamount-ord.fuelamount-ord.waitingtimeamount-ord.insuranceamount-ord.afterhoursamount) as allaccessory1 ,ord.Tax1Name,ord.Tax1Amount,
+	ord.SubTotalAmount,ord.TotalAmount   
+  FROM [CourierComplete].[dbo].[viewSearchOrders] ORD  
+  INNER JOIN [CourierComplete].[dbo].[ServiceTypes] S ON ORD.SERVICETYPEID=S.SERVICETYPEID 
+  inner join couriercomplete.dbo.clients c on ord.accountnumber=c.accountnumber
+   WHERE ord.Reference=@Reference
+  AND ord.AccountNumber in (select distinct subaccountid from [Rogue].[dbo].[EDIUserAccess] where userno=@UserNo)
+  END
+   ELSE 
+   BEGIN
+   SELECT ord.Reference,c.name AS AccountName,InvoiceNumber,ord.AccountNumber,s.description AS serviceType,ord.OrderNo,ord.waitingtimeamount,ord.insuranceamount,ord.afterhoursamount,
+	CASE WHEN ORD.InvoiceNumber IS NOT NULL THEN 'Invoiced' ELSE (CASE WHEN ORD.FinalizedOnDate IS NOT NULL THEN 'Finalized' ELSE 'Delivered' END) END AS Status,
+	 CONVERT(datetime,ord.pickeduptime,120)As PickUpTime,ord.PickupCompanyName,  CONVERT(varchar(100),ord.pickupstreetno) + ' '  + CONVERT(varchar(100), ord.pickupstreet) AS PickUpStreet,ord.PickupCity,ord.PickupProvince,ord.PickupPostalCode,
+	 CONVERT(datetime,ord.deliveredtime,120)As DeliverTime,ord.DeliveryCompanyName, CONVERT(varchar(100),ord.deliverystreetno) + ' '  + CONVERT(varchar(100), ord.deliverystreet) AS DeliveryStreet,ord.DeliveryCity,
+	ord.DeliveryProvince,ord.DeliveryPostalCode,CASE WHEN ISNULL(ORD.CubedWeight, 0) > ISNULL(ORD.[Weight], 0) THEN ISNULL(ORD.CubedWeight, 0) ELSE ISNULL(ORD.[Weight], 0) END AS 'Billedweight',
+	ord.BaseAmount,ord.FuelAmount,(ord.subtotalamount-ord.baseamount-ord.fuelamount-ord.waitingtimeamount-ord.insuranceamount-ord.afterhoursamount) as allaccessory1 ,ord.Tax1Name,ord.Tax1Amount,
+	ord.SubTotalAmount,ord.TotalAmount   
+  FROM [CourierComplete].[dbo].[viewSearchOrders] ORD  
+  INNER JOIN [CourierComplete].[dbo].[ServiceTypes] S ON ORD.SERVICETYPEID=S.SERVICETYPEID 
+  inner join couriercomplete.dbo.clients c on ord.accountnumber=c.accountnumber
+   WHERE DATEADD(dd, DATEDIFF(dd, 0, ord.pickeduptime),0) >= @StartDate AND   DATEADD(dd, DATEDIFF(dd, 0, ord.pickeduptime),0)<=@EndDate
+  AND ord.AccountNumber in (select distinct subaccountid from [Rogue].[dbo].[EDIUserAccess] where userno=@UserNo) AND ord.deliveredtime is not null ORDER BY DATEADD(dd, DATEDIFF(dd, 0, ord.pickeduptime),0)
+  END
+   
+  
+END
+
+
+
+
+USE [CourierComplete]
+GO
+/****** Object:  StoredProcedure [dbo].[ratecomparison]    Script Date: 12/17/2015 14:46:50 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		<Author,,Name>
+-- Create date: <Create Date,,>
+-- Description:	<Description,,>
+-- =============================================
+ALTER PROCEDURE [dbo].[ratecomparison]
+	
+AS
+BEGIN
+SET NOCOUNT ON;
+DECLARE @AccountNumber int
+DECLARE @AccountName varchar(100)
+DECLARE @PickupDate datetime
+DECLARE @billedweight money
+DECLARE @ServiceTypeID int
+DECLARE @VehicleTypeID int
+DECLARE @pickupzoneID int
+DECLARE @deliveryzoneid int
+DECLARE @pickupzone varchar(100)
+DECLARE @deliveryzone  varchar(100)
+DECLARE @baseamount money
+DECLARE @baseamounttoday money
+
+
+DECLARE @OrdersTable TABLE 
+	(
+		
+		AccountNumber int, 
+		AccountName varchar(200),
+		Pickupdate datetime,
+		[Billed Weight] money, 
+		pickupzone varchar(100),
+		deliveryzone varchar(100),
+		[baseamount] money,
+		[basetoday] money	
+	)
+	DECLARE @Base TABLE
+	(
+	BasePrice money,
+	BaseComm money, 
+	MinSub money,
+	MinSubDriver money,
+	ReturnRate money, 
+    PlanID int, 
+	PlanName varchar(100),
+	PlanType int,
+	SurPlanType int,
+	SurPlanName varchar(100), 
+	TraceText varchar(255)
+	)
+	CREATE TABLE #Base (BasePrice money, BaseComm money, MinSub money, MinSubDriver money, ReturnRate money, PlanID int, PlanName varchar(100), PlanType int, SurPlanType int, SurPlanName varchar(100), TraceText varchar(255))
+   
+   DECLARE Orders CURSOR FOR
+   SELECT v.accountnumber,c.name AS accountname,v.servicetypeid,v.vehicletypeid,v.pickupdate,CASE WHEN ISNULL(v.CubedWeight, 0) > ISNULL(v.[Weight], 0) THEN ISNULL(v.CubedWeight, 0) ELSE ISNULL(v.[Weight], 0) END AS billedweight,v.pickupzoneid,v.deliveryzoneid,z.description As pickupzone,zz.description As deliveryzone,v.baseamount
+  FROM [CourierComplete].[dbo].[viewSearchOrders] v inner join [CourierComplete].[dbo].[zones] z on v.pickupzoneID=z.zoneID Inner join [CourierComplete].[dbo].[zones] zz on v.deliveryzoneID=zz.zoneID inner join
+ [CourierComplete].[dbo].[Clients] c ON v.accountnumber=c.accountnumber
+  WHERE (v.pickupzoneID=8124 OR v.pickupzoneID=580)and v.pickupdate >'2015-01-01' and (zz.zonesetid=8 or zz.zonesetid=25) 
+  OPEN Orders
+	FETCH NEXT FROM Orders INTO @AccountNumber, @AccountName, @ServiceTypeID,@VehicleTypeID,@pickupdate,@billedweight,@pickupzoneid,@deliveryzoneid,@pickupzone,@deliveryzone,@baseamount
+	WHILE @@FETCH_STATUS = 0
+		BEGIN
+		    INSERT #Base
+		    EXEC [CourierComplete].dbo.spOrderBasePriceGet	@AccountNumber_1 = @AccountNumber, @ServiceTypeID_2 = @ServiceTypeID, @PUAddressID_3 = NULL, @PUAddressZone_10 = @PickupZoneID, @DELAddressID_11 = NULL, 
+				@DELAddressZone_18 = @DeliveryZoneID, @VehicleTypeID_19 = @VehicleTypeID, @Reference_20 = NULL, @Weight_21 = @BilledWeight, @PackageTypeID_22 = 3, @NumPackages_23 = 1,	@Distance_24 = 0, @IsReturn_25 = 0, @TraceOn = 0
+			SELECT @baseamounttoday = BasePrice FROM #Base
+			DELETE FROM @Base
+				INSERT @OrdersTable
+			SELECT @AccountNumber, @AccountName,@pickupdate,@billedweight,@pickupzone,@deliveryzone,@baseamount,@baseamounttoday
+			FETCH NEXT FROM Orders INTO @AccountNumber, @AccountName, @ServiceTypeID,@VehicleTypeID,@pickupdate,@billedweight,@pickupzoneid,@deliveryzoneid,@pickupzone,@deliveryzone,@baseamount
+		END
+	
+	CLOSE Orders
+	DEALLOCATE Orders
+	
+	
+	INSERT INTO [Rogue].[dbo].[ratecomparisonfortariff] select * from @ordersTable 
+	DROP TABLE #Base
+END
+
+
+
+
+
+
+USE [Rogue]
+GO
+/****** Object:  StoredProcedure [dbo].[uspAccrualReport]    Script Date: 12/17/2015 14:53:18 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		John Turner
+-- Create date: Nov 14/13
+-- Description:	Accrual Report Query
+-- =============================================
+ALTER PROCEDURE [dbo].[uspAccrualReport] 
+	@StartDate datetime, 
+	@EndDate datetime,
+	@BaseMileRate money = 0.0005,
+	@FuelRate money = 0.18,
+	@SPOrderPrice money = 150
+AS
+BEGIN
+	SET NOCOUNT ON;
+
+	DECLARE @AccountName varchar(100)
+	DECLARE @AccountNo int
+	DECLARE @OrderNo int
+	DECLARE @InvoiceNo int
+	DECLARE @InvoiceDate datetime
+	DECLARE @Waybill varchar(50)
+	DECLARE @BaseAmount money
+	DECLARE @ShipDate datetime
+	DECLARE @DeliveryDate datetime
+	DECLARE @BilledWeight int
+	DECLARE @ServiceType varchar(50)
+	DECLARE @ServiceTypeID int
+	DECLARE @ShipName varchar(255)
+	DECLARE @ShipCity varchar(100)
+	DECLARE @ShipProv varchar(10)
+	DECLARE @ShipPostal varchar(10)
+	DECLARE @DelName varchar(255)
+	DECLARE @DelCity varchar(100)
+	DECLARE @DelProv varchar(10)
+	DECLARE @DelPostal varchar(10)
+	DECLARE @Base money
+	DECLARE @BasePlus money
+	DECLARE @PickupZoneID int
+	DECLARE @DeliveryZoneID int
+	DECLARE @Fuel money
+	DECLARE @SubTotal money
+	DECLARE @Partner varchar(10)
+	DECLARE @BrokerCost money
+	DECLARE @CarrierCost money
+	DECLARE @OrderState varchar(10)
+	DECLARE @PULat decimal(12, 6)
+	DECLARE @PULong decimal(12, 6)
+	DECLARE @DELLat decimal(12, 6)
+	DECLARE @DELLong decimal(12, 6)
+	DECLARE @Mileage float
+	DECLARE @BaseCalc varchar(50)
+	DECLARE @WeightRange varchar(20)
+	DECLARE @WeightRangeSort int
+	DECLARE @PrimaryCarrier varchar(100)
+
+	DECLARE @OrdersTable TABLE 
+		(
+			InvoiceNumber int,
+			InvoiceDate datetime,
+			AccountName varchar(100), 
+			ServiceType varchar(50), 
+			OrderNo int,
+			CarrierPro varchar(50),
+			ShipDate datetime,
+			DeliveryDate datetime,
+			ShipperName varchar(100), 
+			ShipperCity varchar(50), 
+			ShipperProv varchar(5), 
+			ShipperPC varchar(10),
+			ConsigneeName varchar(100), 
+			ConsigneeCity varchar(50), 
+			ConsigneeProv varchar(5), 
+			ConsigneePC varchar(10),
+			BilledWeight int, 
+			Base money, 
+			[Base+Accessorials] money,
+			Fuel money,
+			SubTotal money,
+			BrokerCosts money,
+			[Partner] varchar(20),
+			PartnerCost money,
+			PrimaryCarrier varchar(100),
+			OrderState varchar(20),
+			BaseCalc varchar(50),
+			WeightRange varchar(20),
+			Sort int
+		)
+
+	DECLARE Orders CURSOR FOR
+		SELECT
+			ORD.AccountNumber,
+			AR.TransactionNumber AS [Invoice Number],
+			[CourierComplete].dbo.ufnDateOnly(AR.TransactionDate) AS [Invoice Date],
+			CL.[Name] AS AcountName,
+			ST.[Description] AS ServiceType,
+			ORD.ServiceTypeID,
+			ORD.OrderNo,
+			REPLACE(REPLACE(REPLACE(CAST(ORD.WayBillNumber AS varchar(50)), CHAR(10), ''), CHAR(13), ''), CHAR(9), '') AS CarrierPro,
+			CASE WHEN ISDATE(ORD.PickedupTime) = 1 THEN [CourierComplete].dbo.ufnDateOnly(CAST(ORD.PickedupTime AS datetime)) ELSE [CourierComplete].dbo.ufnDateOnly(ORD.PickupDate) END AS [Ship Date],
+			[CourierComplete].dbo.ufnDateOnly(CAST(ORD.DeliveredTime AS datetime)) AS [Delivery Date],
+			LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(ORD.PickupCompanyName, CHAR(10), ''), CHAR(13), ''), CHAR(9), ''))) AS [ShipperName],
+			LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(ORD.PickupCity, CHAR(10), ''), CHAR(13), ''), CHAR(9), ''))) AS [ShipperCity],
+			CASE WHEN ORD.PickupProvince = 'PQ' THEN 'QC' ELSE (CASE WHEN ORD.PickupProvince = 'NF' THEN 'NL' ELSE ORD.PickupProvince END) END AS [ShipperProv],
+			REPLACE(REPLACE(REPLACE(ORD.PickupPostalCode, CHAR(10), ''), CHAR(13), ''), CHAR(9), '') AS PickupPostalCode,
+			LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(ORD.DeliveryCompanyName, CHAR(10), ''), CHAR(13), ''), CHAR(9), ''))) AS [ConsigneeName],
+			LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(ORD.DeliveryCity, CHAR(10), ''), CHAR(13), ''), CHAR(9), ''))) AS [ConsigneeCity],
+			CASE WHEN ORD.DeliveryProvince = 'PQ' THEN 'QC' ELSE (CASE WHEN ORD.DeliveryProvince = 'NF' THEN 'NL' ELSE ORD.DeliveryProvince END) END AS [ConsigneeProv],
+			REPLACE(REPLACE(REPLACE(ORD.DeliveryPostalCode, CHAR(10), ''), CHAR(13), ''), CHAR(9), '') AS DeliveryPostalCode,
+			ORD.PickupZoneID,
+			ORD.DeliveryZoneID,
+			CASE WHEN ISNULL(ORD.CubedWeight, 0) > ISNULL(ORD.[Weight], 0) THEN ISNULL(ORD.CubedWeight, 0) ELSE ISNULL(ORD.[Weight], 0) END AS [Billed Weight],
+			CASE WHEN ORD.AccountNumber = 6 THEN 0 ELSE ISNULL(ORD.BaseAmount, 0) END AS BaseAmount,
+			CASE WHEN ORD.AccountNumber = 6 THEN 0 ELSE ISNULL(ORD.SubtotalAmount, 0)-ISNULL(ORD.FuelAmount, 0) END AS [Base + Accessorials],
+			CASE WHEN ORD.AccountNumber = 6 THEN 0 ELSE ISNULL(ORD.FuelAmount, 0) END AS Fuel,
+			CASE WHEN ORD.AccountNumber = 6 THEN 0 ELSE ISNULL(ORD.SubtotalAmount, 0) END AS [Sub-Total],
+			CASE WHEN PD.DriverTypeID = 5 THEN 'True' ELSE (CASE WHEN DD.DriverTypeID = 5 THEN 'True' ELSE (CASE WHEN D3.DriverTypeID = 5 THEN 'True' ELSE (CASE WHEN D4.DriverTypeID = 5 THEN 'True' ELSE (CASE WHEN D5.DriverTypeID = 5 THEN 'True' ELSE 'False' END) END) END) END) END AS Partner,
+			(CASE WHEN PD.DriverTypeID = 5 THEN ISNULL(PUDriverCommission, 0) ELSE 0 END)+(CASE WHEN DD.DriverTypeID = 5 THEN ISNULL(DELDriverCommission, 0) ELSE 0 END)+(CASE WHEN D3.DriverTypeID = 5 THEN ISNULL(Driver3Commission, 0) ELSE 0 END)+(CASE WHEN D4.DriverTypeID = 5 THEN ISNULL(Driver4Commission, 0) ELSE 0 END)+(CASE WHEN D5.DriverTypeID = 5 THEN ISNULL(Driver5Commission, 0) ELSE 0 END) AS PartnerCost,
+			(CASE WHEN PD.DriverTypeID IN (1, 2) THEN ISNULL(PUDriverCommission, 0) ELSE 0 END)+(CASE WHEN DD.DriverTypeID IN (1, 2) THEN ISNULL(DELDriverCommission, 0) ELSE 0 END)+(CASE WHEN D3.DriverTypeID IN (1, 2) THEN ISNULL(Driver3Commission, 0) ELSE 0 END)+(CASE WHEN D4.DriverTypeID IN (1, 2) THEN ISNULL(Driver4Commission, 0) ELSE 0 END)+(CASE WHEN D5.DriverTypeID IN (1, 2) THEN ISNULL(Driver5Commission, 0) ELSE 0 END) AS BrokerCost,
+			CASE WHEN ORD.InvoiceNumber IS NOT NULL THEN 'Invoiced' ELSE (CASE WHEN ORD.FinalizedOnDate IS NOT NULL THEN 'Finalized' ELSE 'Delivered' END) END AS OrderState
+		FROM 
+			[CourierComplete].dbo.viewSearchOrders AS ORD
+			LEFT OUTER JOIN (SELECT * FROM [CourierComplete].dbo.AROpenTransactions WHERE TransactionType = 1) AS AR ON ORD.InvoiceNumber = AR.TransactionNumber
+			INNER JOIN [CourierComplete].dbo.Clients AS CL ON ORD.AccountNumber = CL.AccountNumber 
+			LEFT OUTER JOIN [CourierComplete].dbo.ServiceTypes AS ST ON ORD.ServiceTypeID = ST.ServiceTypeID
+			LEFT OUTER JOIN [CourierComplete].dbo.Drivers AS PD ON ORD.PickupDriver = PD.DriverNumber
+			LEFT OUTER JOIN [CourierComplete].dbo.Drivers AS DD ON ORD.DeliveryDriver = DD.DriverNumber
+			LEFT OUTER JOIN [CourierComplete].dbo.Drivers AS D3 ON ORD.Driver3 = D3.DriverNumber
+			LEFT OUTER JOIN [CourierComplete].dbo.Drivers AS D4 ON ORD.Driver4 = D4.DriverNumber
+			LEFT OUTER JOIN [CourierComplete].dbo.Drivers AS D5 ON ORD.Driver5 = D5.DriverNumber
+		WHERE
+			CASE WHEN ISDATE(ORD.DeliveredTime) = 1 THEN CAST(ORD.DeliveredTime AS datetime) ELSE DATEADD(yy, -1, @StartDate) END >= @StartDate
+			AND CASE WHEN ISDATE(ORD.DeliveredTime) = 1 THEN CAST(ORD.DeliveredTime AS datetime) ELSE DATEADD(yy, 1, @StartDate) END <= DATEADD(hh, 23,@EndDate)
+			AND ORD.StatusID <> 7
+			AND ORD.AccountNumber NOT IN (1, 2, 3, 4, 5, 200708, 200453, 200334, 200459, 200485, 200486, 201445, 201505)
+		ORDER BY 
+			ORD.OrderNo
+
+	OPEN Orders
+		FETCH NEXT FROM Orders INTO @AccountNo, @InvoiceNo, @InvoiceDate, @AccountName, @ServiceType, @ServiceTypeID, @OrderNo, @Waybill, @ShipDate, @DeliveryDate, @ShipName, @ShipCity, @ShipProv, @ShipPostal, 
+			@DelName, @DelCity, @DelProv, @DelPostal, @PickupZoneID, @DeliveryZoneID, @BilledWeight, @Base, @BasePlus, @Fuel, @SubTotal, @Partner, @CarrierCost, @BrokerCost, @OrderState
+		 
+		WHILE @@FETCH_STATUS = 0
+			BEGIN
+				IF @BilledWeight <= 499 
+					BEGIN
+						SELECT @WeightRange = '0-500'
+						SELECT @WeightRangeSort = 1
+					END
+				ELSE IF @BilledWeight <= 999 
+					BEGIN
+						SELECT @WeightRange = '501-1,000'
+						SELECT @WeightRangeSort = 2
+					END
+				ELSE IF @BilledWeight <= 1999 
+					BEGIN
+						SELECT @WeightRange = '1,001-2,000'
+						SELECT @WeightRangeSort = 3
+					END
+				ELSE IF @BilledWeight <= 4999 
+					BEGIN
+						SELECT @WeightRange = '2,001-5,000'
+						SELECT @WeightRangeSort = 4
+					END
+				ELSE IF @BilledWeight <= 9999 
+					BEGIN
+						SELECT @WeightRange = '5,001-10,000'
+						SELECT @WeightRangeSort = 5
+					END
+				ELSE IF @BilledWeight <= 19999 
+					BEGIN
+						SELECT @WeightRange = '10,001-20,000'
+						SELECT @WeightRangeSort = 6
+					END
+				ELSE
+					BEGIN
+						SELECT @WeightRange = '20,000+'
+						SELECT @WeightRangeSort = 7
+					END
+
+				IF @Partner = 'True'
+					BEGIN
+						SELECT TOP 1 @PrimaryCarrier = REPLACE(REPLACE(CarrierName, CHAR(10), ''), CHAR(13), '') FROM [CourierComplete].dbo.viewOrderDrivers WHERE OrderNo = @OrderNo ORDER BY Commission DESC
+					END
+				ELSE
+					BEGIN
+						SELECT @PrimaryCarrier = ''
+					END
+
+				SELECT @Mileage = NULL, @PULat = NULL, @PULong = NULL, @DELLat = NULL, @DELLong = NULL
+				SELECT @BaseCalc = 'Finalized'
+				IF @OrderState = 'Delivered' AND @Base = 0 AND @AccountNo = 200737
+					BEGIN
+						SELECT @Base = @SPOrderPrice
+						SELECT @BasePlus = @Base
+						SELECT @BaseCalc = 'Estimate'
+						SELECT @Fuel = @Base*@FuelRate
+						SELECT @SubTotal = @BasePlus+@Fuel
+					END
+				ELSE IF @OrderState = 'Delivered' AND @Base = 0
+					BEGIN
+						SELECT @Base = [Rogue].dbo.ufnHistoricalBase ('12/31/2012',	GetDate(),	@ServiceTypeID, @AccountNo,	@BilledWeight, @PickupZoneID, @DeliveryZoneID, 10000)
+
+						IF @Base < 10 OR @Base >= 7000
+							BEGIN
+
+								IF EXISTS(SELECT 1 FROM [Rogue].dbo.PostalCodes WHERE PostalCodeClean = REPLACE(LTRIM(RTRIM(@ShipPostal)), ' ', ''))
+									BEGIN
+										SELECT TOP 1 @PULat = ISNULL([Latitude], 0), @PULong = ISNULL(Longitude, 0) FROM [Rogue].dbo.PostalCodes WHERE PostalCodeClean = REPLACE(LTRIM(RTRIM(@ShipPostal)), ' ', '')
+									END
+								ELSE
+									BEGIN
+										SELECT TOP 1 @PULat = ISNULL([Latitude], 0), @PULong = ISNULL(Longitude, 0) FROM [Rogue].dbo.PostalCodes WHERE City = LTRIM(RTRIM(@ShipCity)) AND Province = @ShipProv
+									END
+
+								IF EXISTS(SELECT 1 FROM [Rogue].dbo.PostalCodes WHERE PostalCodeClean = REPLACE(LTRIM(RTRIM(@DelPostal)), ' ', ''))
+									BEGIN
+										SELECT TOP 1 @DELLat = ISNULL([Latitude], 0), @DELLong = ISNULL(Longitude, 0) FROM [Rogue].dbo.PostalCodes WHERE PostalCodeClean = REPLACE(LTRIM(RTRIM(@DelPostal)), ' ', '')
+									END
+								ELSE 
+									BEGIN
+										SELECT TOP 1 @DELLat = ISNULL([Latitude], 0), @DELLong = ISNULL(Longitude, 0) FROM [Rogue].dbo.PostalCodes WHERE City = LTRIM(RTRIM(@DelCity)) AND Province = @DelProv
+									END
+
+								SELECT @Mileage = [Rogue].dbo.ufnDistanceCalc(@PULat, @PULong, @DELLat, @DELLong, 1) 
+
+								IF @Mileage = 0 AND @DelCity = @ShipCity
+									BEGIN
+										SELECT @Mileage = 10
+									END
+
+								IF @BilledWeight > 0
+									BEGIN
+										SELECT @Base = @Mileage*@BilledWeight*@BaseMileRate
+									END
+								ELSE
+									BEGIN
+										SELECT @Base = @Mileage*10*@BaseMileRate
+									END
+
+								IF @Base < 30
+									BEGIN
+										SELECT @Base = 30
+									END 
+								ELSE IF @Base > 4000
+									BEGIN
+										SELECT @Base = 1500
+									END
+								END
+					
+						IF @BasePlus > 0
+							BEGIN
+								SELECT @BasePlus = @Base+@BasePlus
+							END
+						ELSE
+							BEGIN
+								SELECT @BasePlus = @Base
+							END
+						SELECT @BaseCalc = 'Estimate'
+						SELECT @Fuel = @Base*@FuelRate
+						SELECT @SubTotal = @BasePlus+@Fuel
+					END
+				ELSE IF @OrderState = 'Delivered'
+					BEGIN
+						SELECT @BaseCalc = 'Pre-Audit Autorate'
+					END
+
+				INSERT @OrdersTable
+				SELECT @InvoiceNo, @InvoiceDate, @AccountName, @ServiceType, @OrderNo, @Waybill, @ShipDate, @DeliveryDate, @ShipName, @ShipCity, @ShipProv, @ShipPostal, @DelName, @DelCity, @DelProv, @DelPostal,
+					@BilledWeight, @Base, @BasePlus, @Fuel, @SubTotal, @BrokerCost, @Partner, @CarrierCost, @PrimaryCarrier, @OrderState, @BaseCalc, @WeightRange, @WeightRangeSort 
+			
+				FETCH NEXT FROM Orders INTO @AccountNo, @InvoiceNo, @InvoiceDate, @AccountName, @ServiceType, @ServiceTypeID, @OrderNo, @Waybill, @ShipDate, @DeliveryDate, @ShipName, @ShipCity, @ShipProv, @ShipPostal, 
+					@DelName, @DelCity, @DelProv, @DelPostal, @PickupZoneID, @DeliveryZoneID, @BilledWeight, @Base, @BasePlus, @Fuel, @SubTotal, @Partner, @CarrierCost, @BrokerCost, @OrderState
+			END
+	
+		CLOSE Orders
+		DEALLOCATE Orders
+
+		SELECT * FROM @OrdersTable --WHERE InvoiceDate IS NULL AND DeliveryDate < '10/01/2013' ORDER BY OrderNo
+
+END
+
+SELECT t.name AS table_name,
+SCHEMA_NAME(schema_id) AS schema_name,
+c.name AS column_name
+FROM sys.tables AS t
+INNER JOIN sys.columns c ON t.OBJECT_ID = c.OBJECT_ID
+WHERE c.name LIKE '%Jimmy%'
+ORDER BY schema_name, table_name; 
+
+declare @SearchStr nvarchar(100)
+set @SearchStr = '%2\mail%'
+drop table #Results
+CREATE TABLE #Results (ColumnName nvarchar(370), ColumnValue nvarchar(3630))
+
+	SET NOCOUNT ON
+
+	DECLARE @TableName nvarchar(256), @ColumnName nvarchar(128), @SearchStr2 nvarchar(110)
+	SET  @TableName = ''
+	SET @SearchStr2 = QUOTENAME('%' + @SearchStr + '%','''')
+
+	WHILE @TableName IS NOT NULL
+	BEGIN
+		SET @ColumnName = ''
+		SET @TableName = 
+		(
+			SELECT MIN(QUOTENAME(TABLE_SCHEMA) + '.' + QUOTENAME(TABLE_NAME))
+			FROM 	INFORMATION_SCHEMA.TABLES
+			WHERE 		TABLE_TYPE = 'BASE TABLE'
+				AND	QUOTENAME(TABLE_SCHEMA) + '.' + QUOTENAME(TABLE_NAME) > @TableName
+				AND	OBJECTPROPERTY(
+						OBJECT_ID(
+							QUOTENAME(TABLE_SCHEMA) + '.' + QUOTENAME(TABLE_NAME)
+							 ), 'IsMSShipped'
+						       ) = 0
+		)
+
+		WHILE (@TableName IS NOT NULL) AND (@ColumnName IS NOT NULL)
+		BEGIN
+			SET @ColumnName =
+			(
+				SELECT MIN(QUOTENAME(COLUMN_NAME))
+				FROM 	INFORMATION_SCHEMA.COLUMNS
+				WHERE 		TABLE_SCHEMA	= PARSENAME(@TableName, 2)
+					AND	TABLE_NAME	= PARSENAME(@TableName, 1)
+					AND	DATA_TYPE IN ('char', 'varchar', 'nchar', 'nvarchar')
+					AND	QUOTENAME(COLUMN_NAME) > @ColumnName
+			)
+	
+			IF @ColumnName IS NOT NULL
+			BEGIN
+				INSERT INTO #Results
+				EXEC
+				(
+					'SELECT ''' + @TableName + '.' + @ColumnName + ''', LEFT(' + @ColumnName + ', 3630) 
+					FROM ' + @TableName + ' (NOLOCK) ' +
+					' WHERE ' + @ColumnName + ' LIKE ' + @SearchStr2
+				)
+			END
+		END	
+	END
+
+	SELECT ColumnName, ColumnValue FROM #Results
+
+
+
+
+
+
+

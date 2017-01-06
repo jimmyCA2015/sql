@@ -1,0 +1,84 @@
+DBCC CHECKIDENT ('[TBLDriverPay]', RESEED, 0) 
+http://db2storedproc.blogspot.ca/
+http://www.toadworld.com/platforms/ibmdb2/w/wiki/7462.cursors-open-close-and-fetch
+
+CREATE OR REPLACE PROCEDURE Xiang (IN PARAMETER1 VARCHAR(30) DEFAULT 'J')// PLEASE NOTE IN DOESN'T HAVE TO BE SPECIFIED
+	DYNAMIC RESULT SETS 1// note this is required if return result set
+ BEGIN
+DECLARE STMT VARCHAR(200);
+ DECLARE EOF INT DEFAULT 0;
+ DECLARE v_PARAM VARCHAR(30);
+ DECLARE v_username VARCHAR(30);
+ DECLARE v_password VARCHAR(30);
+ /*please note handler must be before temp table and cursor must be before handler, PLEASE NOTE U HAVE TO ALLOCATE USER PRIVELEGE ON TEMP TABLESPACE TO ALLOW TEMP TABLE PROCESSING*/
+ DECLARE C CURSOR FOR SELECT * FROM DBO.PYY;
+ 
+   DECLARE CONTINUE HANDLER FOR NOT FOUND
+    SET EOF = 1;
+  DECLARE GLOBAL TEMPORARY TABLE SESSION.test (username varchar(200),password varchar(200)); 
+
+  
+  OPEN C;
+     WHILE EOF = 0 DO
+    FETCH  C INTO v_username, v_password;
+    INSERT INTO SESSION.test values(v_username,v_password);
+  END WHILE;
+  CLOSE C;
+     
+ SET STMT = 'SELECT * FROM SESSION.test';
+  
+  EXECUTE IMMEDIATE STMT;
+ 
+END 
+
+CREATE TABLE DBO.ACCOUNTJIM3(
+number int   not null GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1) PRIMARY KEY,
+account varchar(100)
+) in "PRIMARY"
+
+//PLEASE NOTE BEGIN ATOMIC DOESNT ALLOW CURSOR OR SOME OTHER STATEMDENT, use call stored_procedure_name to invoke stored procedure
+
+
+
+//exmaple of function
+CREATE OR REPLACE FUNCTION XIANG4 ()
+	RETURNS TABLE (username varchar(200),
+              password varchar(200)
+                 )
+    LANGUAGE SQL                            
+     MODIFIES SQL DATA 
+BEGIN ATOMIC
+
+
+  RETURN SELECT username1,password1             
+           FROM DBO.PYY;  
+
+	
+END
+select * from table(xiang4());
+
+
+
+
+//RETURN A RESULTSET
+CREATE PROCEDURE prod.resset () LANGUAGE SQL 
+ DYNAMIC RESULT SETS 1 
+ BEGIN 
+ DECLARE C1 CURSOR FOR SELECT * FROM QIWS.QCUSTCDT;
+ OPEN C1;
+ RETURN; 
+ END 
+
+
+// OR ID  INT NOT NULL PRIMARY KEY, please note constraint primary key must be non-null, also note primary key is auto a clusterd index,constraint for primary key created auto too
+CREATE TABLE DBO.WOW5(
+ID int  NOT NULL ,
+PASSWORD VARCHAR(200)
+/*constraint "PK_midd" PRIMARY KEY ("ID",ASC) */
+) IN "PRIMARY";
+
+ ALTER TABLE DBO.WOW5 ADD CONSTRAINT "PK_ACT" PRIMARY KEY
+	("ID");
+
+CREATE INDEX WOW5 ON DBO.WOW5(ID) cluster;
+
